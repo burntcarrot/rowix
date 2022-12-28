@@ -126,16 +126,140 @@ func (e *Editor) showPositions() {
 }
 
 // MoveCursor updates the Cursor position.
-func (e *Editor) MoveCursor(x, _ int) {
+func (e *Editor) MoveCursor(x, y int) {
+	// move cursor horizontally
 	newCursor := e.Cursor + x
+
+	// move cursor vertically
+	if y > 0 {
+		newCursor = e.calcCursorDown()
+	}
+
+	if y < 0 {
+		newCursor = e.calcCursorUp()
+	}
+
+	if newCursor > len(e.Text) {
+		newCursor = len(e.Text)
+	}
 
 	if newCursor < 0 {
 		newCursor = 0
 	}
-	if newCursor > len(e.Text) {
-		newCursor = len(e.Text)
-	}
+
 	e.Cursor = newCursor
+}
+
+func (e *Editor) calcCursorUp() int {
+	pos := e.Cursor
+	// reset cursor if out of bounds
+	if pos > len(e.Text)-1 {
+		pos = len(e.Text) - 1
+	}
+
+	// if cursor is currently on newline, "move" it
+	if e.Text[pos] == '\n' {
+		pos--
+	}
+
+	cls := -1
+	// find the start of the line the cursor is currently on
+	for i := pos; i > 0; i-- {
+		if e.Text[i] == '\n' {
+			cls = i
+			break
+		}
+	}
+	var offset int
+	// set the cursor offset from the start of the current line
+	if cls < 0 {
+		offset = e.Cursor + 1
+	} else {
+		offset = e.Cursor - cls
+	}
+
+	pls := -1
+	// find the start of the previous line
+	if cls > 0 { // no need to find previous line start if current line start doesn't exist
+		for i := cls - 1; i > 0; i-- {
+			if e.Text[i] == '\n' {
+				pls = i
+				break
+			}
+		}
+	}
+	// if start of previous line isn't found, assume previous line is first of the document and set cursor to end
+	if pls < 0 {
+		pls = 0
+		offset--
+	}
+
+	if cls < 0 {
+		return 0
+	} else if cls-pls < offset { // if previous line is shorter than the offset, set cursor to start of current line
+		return cls
+	} else { // default
+		return pls + offset
+	}
+}
+
+func (e *Editor) calcCursorDown() int {
+	pos := e.Cursor
+	// reset cursor if out of bounds
+	if pos > len(e.Text)-1 {
+		pos = len(e.Text) - 1
+	}
+
+	// if cursor is currently on newline, "move" it
+	if e.Text[pos] == '\n' {
+		pos--
+	}
+
+	cls := -1
+	// find the start of the line the cursor is currently on
+	for i := pos; i > 0; i-- {
+		if e.Text[i] == '\n' {
+			cls = i
+			break
+		}
+	}
+	var offset int
+	// set the cursor offset from the start of the current line
+	if cls < 0 {
+		offset = e.Cursor + 1
+	} else {
+		offset = e.Cursor - cls
+	}
+
+	cle, nle := -1, -1
+	// find the end of the current line
+	for i := cls + 1; i < len(e.Text); i++ {
+		if e.Text[i] == '\n' {
+			cle = i
+			break
+		}
+	}
+	// find the end of the next line
+	if cle > 0 { // no need to find next line end if the end of the current line doesn't exist
+		for i := cle + 1; i < len(e.Text); i++ {
+			if e.Text[i] == '\n' {
+				nle = i
+				break
+			}
+		}
+	}
+	// if end of next line isn't found, assume next line is last of the document and set cursor to end
+	if nle < 0 {
+		nle = len(e.Text)
+	}
+
+	if cle < 0 {
+		return len(e.Text)
+	} else if nle-cle < offset { // if next line is shorter than the offset, set cursor to end of next line
+		return nle
+	} else { // default
+		return cle + offset
+	}
 }
 
 // calcCursorXY calculates Cursor position from the index obtained from the content.
